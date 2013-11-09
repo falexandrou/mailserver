@@ -36,7 +36,7 @@ class mailserver (
   }
   include postgresql::server
 
-  postgresql::db { $dbname:
+  postgresql::server::db { $dbname:
     user     => $dbuser,
     password => $dbpassword
   }
@@ -46,7 +46,7 @@ class mailserver (
     database_username => $dbuser,
     database_password => $dbpassword,
     database_name     => $dbname,
-    require           => Postgresql::Db[$dbname],
+    require           => Postgresql::Server::Db[$dbname],
     before            => Postgresql_psql["${dbname}-init-database"],
   }
 
