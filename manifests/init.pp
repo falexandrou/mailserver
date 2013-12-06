@@ -106,8 +106,10 @@ ALTER TABLE ONLY transport
   }
 
   $content_filter = ''
+  $receive_override_options = ''
   if ($enable_antivirus == true) {
     $content_filter = 'amavis:[127.0.0.1]:10024'
+    $receive_override_options = 'no_address_mappings'
   }
 
   class { 'postfix::config':
@@ -127,7 +129,7 @@ ALTER TABLE ONLY transport
     myorigin                             => '/etc/mailname',
     local_recipient_maps                 => 'proxy:unix:passwd.byname $alias_maps',
     proxy_read_maps                      => '$local_recipient_maps $mydestination $virtual_alias_maps $virtual_alias_domains $virtual_mailbox_maps $virtual_mailbox_domains $relay_recipient_maps $relay_domains $canonical_maps $sender_canonical_maps $recipient_canonical_maps $relocated_maps $transport_maps $mynetworks',
-    receive_override_options             => 'no_address_mappings',
+    receive_override_options             => $receive_override_options,
     show_user_unknown_table_name         => 'no',
     smtp_sasl_security_options           => 'yes',
     smtp_tls_CAfile                      => $ssl_ca_file,
