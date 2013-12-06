@@ -111,6 +111,7 @@ ALTER TABLE ONLY transport
   }
 
   class { 'postfix::config':
+    inet_protocols                       => 'ipv4',
     alias_maps                           => 'hash:/etc/aliases',
     append_dot_mydomain                  => 'no',
     biff                                 => 'no',
