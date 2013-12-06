@@ -2,7 +2,8 @@ class mailserver (
   $dbuser,
   $dbpassword,
   $domains               = [],
-  $users                 = {}, 
+  $users                 = {},
+  $virtual_users         = {},
   $dbname                = 'mail',
   $mydestination         = 'localhost, localhost.localdomain',
   $myhostname            = 'localhost',
@@ -22,7 +23,11 @@ class mailserver (
 	  'quota'      => $default_quota,
 	  'dbname'     => $dbname,
   }
+  $virtual_users_defaults = {
+    'dbname'     => $dbname,
+  }
   create_resources(mailuser, $users, $users_defaults)
+  create_resources(virtualuser, $virtual_users, $virtual_users_defaults)
   maildomain { $domains :
   	dbname=>$dbname,
   }
