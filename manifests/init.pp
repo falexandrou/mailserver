@@ -15,10 +15,13 @@ class mailserver (
   $postmaster_address    = "root@${::fqdn}",
   $message_size_limit    = '60485760',
   $default_quota         = '10485760',
+  $enable_antivirus      = false,
 ) {
-  include clamav
-  Class['amavis'] -> Class['clamav']
-  include amavis
+  if ($enable_antivirus == true) {
+    include clamav
+    Class['amavis'] -> Class['clamav']
+    include amavis
+  }
   $users_defaults = {
 	  'quota'      => $default_quota,
 	  'dbname'     => $dbname,
@@ -31,14 +34,18 @@ class mailserver (
   maildomain { $domains :
   	dbname=>$dbname,
   }
-  class { 'amavis::config':
-    bypass_virus_checks_maps => '(\%bypass_virus_checks, \@bypass_virus_checks_acl, \$bypass_virus_checks_re);',
-    bypass_spam_checks_maps  => '(\%bypass_spam_checks, \@bypass_spam_checks_acl, \$bypass_spam_checks_re);',
-    final_virus_destiny      => 'D_REJECT; # (defaults to D_BOUNCE)',
-    final_banned_destiny     => 'D_REJECT;  # (defaults to D_BOUNCE)',
-    final_spam_destiny       => 'D_PASS;  # (defaults to D_REJECT)',
-    final_bad_header_destiny => 'D_PASS;  # (defaults to D_PASS), D_BOUNCE suggested',
+
+  if ($enable_antivirus == true) {
+    class { 'amavis::config':
+      bypass_virus_checks_maps => '(\%bypass_virus_checks, \@bypass_virus_checks_acl, \$bypass_virus_checks_re);',
+      bypass_spam_checks_maps  => '(\%bypass_spam_checks, \@bypass_spam_checks_acl, \$bypass_spam_checks_re);',
+      final_virus_destiny      => 'D_REJECT; # (defaults to D_BOUNCE)',
+      final_banned_destiny     => 'D_REJECT;  # (defaults to D_BOUNCE)',
+      final_spam_destiny       => 'D_PASS;  # (defaults to D_REJECT)',
+      final_bad_header_destiny => 'D_PASS;  # (defaults to D_PASS), D_BOUNCE suggested',
+    }
   }
+
   include postgresql::server
 
   postgresql::server::db { $dbname:
@@ -86,7 +93,9 @@ ALTER TABLE ONLY transport
   Service['dovecot'] -> Package['postfix']
   Package['postfix-pgsql'] -> Service['postfix']
 
-  Class['amavis::config'] -> Class['postfix']
+  if ($enable_antivirus == true) {
+    Class['amavis::config'] -> Class['postfix']
+  }
 
   class { 'postfix': }
 
@@ -96,12 +105,17 @@ ALTER TABLE ONLY transport
     dbuser     => $dbuser,
   }
 
+  $content_filter = ''
+  if ($enable_antivirus == true) {
+    $content_filter = 'amavis:[127.0.0.1]:10024'
+  }
+
   class { 'postfix::config':
     alias_maps                           => 'hash:/etc/aliases',
     append_dot_mydomain                  => 'no',
     biff                                 => 'no',
     broken_sasl_auth_clients             => 'no',
-    content_filter                       => 'amavis:[127.0.0.1]:10024',
+    content_filter                       => $content_filter,
     disable_vrfy_command                 => 'yes',
     import_environment                   => 'MAIL_CONFIG MAIL_DEBUG MAIL_LOGTAG TZ XAUTHORITY DISPLAY LANG=C RESOLV_MULTI=on',
     mail_spool_directory                 => '/var/mail',
@@ -162,13 +176,15 @@ ALTER TABLE ONLY transport
     -o milter_macro_daemon_name=ORIGINATING"'
   }
 
-  postfix::config::mastercf { 'amavis':
-    type    => 'unix',
-    limit   => '2',
-    chroot  => 'y',
-    command => '"smtp
-        -o smtp_data_done_timeout=1200
-        -o smtp_send_xforward_command=yes"'
+  if ($enable_antivirus == true) {
+    postfix::config::mastercf { 'amavis':
+      type    => 'unix',
+      limit   => '2',
+      chroot  => 'y',
+      command => '"smtp
+          -o smtp_data_done_timeout=1200
+          -o smtp_send_xforward_command=yes"'
+    }
   }
 
   postfix::config::mastercf { 'dovecot':
